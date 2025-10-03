@@ -1,0 +1,29 @@
+# Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+*.test
+*.out
+
+# Environment variables
+.env
+.env.*
+*.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Dependencies
+vendor/
+
+# Build output
+examples/basic_usage
+
+# Logs
+*.log
