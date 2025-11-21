@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	openai "github.com/sashabaranov/go-openai"
 )
@@ -22,24 +23,54 @@ func NewOpenAIAdapter(apiKey, model string) *OpenAIAdapter {
 	}
 }
 
-// Complete sends a completion request to OpenAI
+// Complete sends a completion request to OpenAI with retry logic
 func (a *OpenAIAdapter) Complete(ctx context.Context, req CompletionRequest) (*CompletionResponse, error) {
 	messages := a.buildMessages(req)
 
-	resp, err := a.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-		Model:       a.model,
-		Messages:    messages,
-		MaxTokens:   req.MaxTokens,
-		Temperature: float32(req.Temperature),
-	})
+	fmt.Printf("[LLM] >>>>>> Calling OpenAI API with model=%s, %d messages, maxTokens=%d, temp=%.2f\n",
+		a.model, len(messages), req.MaxTokens, req.Temperature)
 
-	if err != nil {
-		return nil, fmt.Errorf("openai api error: %w", err)
+	// Retry configuration
+	maxRetries := 3
+	var resp openai.ChatCompletionResponse
+	var err error
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		resp, err = a.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+			Model:       a.model,
+			Messages:    messages,
+			MaxTokens:   req.MaxTokens,
+			Temperature: float32(req.Temperature),
+		})
+
+		if err == nil {
+			break // Success!
+		}
+
+		// Log error
+		fmt.Printf("[LLM] ❌ Attempt %d/%d failed: %v\n", attempt, maxRetries, err)
+		fmt.Printf("[LLM] ❌ Error type: %T\n", err)
+
+		// Don't retry on last attempt
+		if attempt == maxRetries {
+			fmt.Printf("[LLM] ❌❌❌ All %d attempts failed. Final error: %v\n", maxRetries, err)
+			fmt.Printf("[LLM] ❌ Model attempted: %s\n", a.model)
+			return nil, fmt.Errorf("openai api error after %d retries: %w", maxRetries, err)
+		}
+
+		// Exponential backoff: 1s, 2s, 4s
+		backoff := time.Duration(1<<uint(attempt-1)) * time.Second
+		fmt.Printf("[LLM] ⏳ Retrying in %v...\n", backoff)
+		time.Sleep(backoff)
 	}
 
 	if len(resp.Choices) == 0 {
+		fmt.Printf("[LLM] ❌ No completion choices returned from OpenAI\n")
 		return nil, fmt.Errorf("no completion choices returned")
 	}
+
+	fmt.Printf("[LLM] ✅ OpenAI response received: %d tokens used, finish_reason=%s\n",
+		resp.Usage.TotalTokens, resp.Choices[0].FinishReason)
 
 	return &CompletionResponse{
 		Content:      resp.Choices[0].Message.Content,
