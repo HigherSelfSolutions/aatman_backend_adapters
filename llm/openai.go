@@ -37,10 +37,10 @@ func (a *OpenAIAdapter) Complete(ctx context.Context, req CompletionRequest) (*C
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		resp, err = a.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-			Model:       a.model,
-			Messages:    messages,
-			MaxTokens:   req.MaxTokens,
-			Temperature: float32(req.Temperature),
+			Model:               a.model,
+			Messages:            messages,
+			MaxCompletionTokens: req.MaxTokens,
+			Temperature:         float32(req.Temperature),
 		})
 
 		if err == nil {
@@ -84,11 +84,11 @@ func (a *OpenAIAdapter) StreamComplete(ctx context.Context, req CompletionReques
 	messages := a.buildMessages(req)
 
 	stream, err := a.client.CreateChatCompletionStream(ctx, openai.ChatCompletionRequest{
-		Model:       a.model,
-		Messages:    messages,
-		MaxTokens:   req.MaxTokens,
-		Temperature: float32(req.Temperature),
-		Stream:      true,
+		Model:               a.model,
+		Messages:            messages,
+		MaxCompletionTokens: req.MaxTokens,
+		Temperature:         float32(req.Temperature),
+		Stream:              true,
 	})
 
 	if err != nil {

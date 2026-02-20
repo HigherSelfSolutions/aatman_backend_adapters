@@ -28,7 +28,7 @@ func main() {
 }
 
 func llmExample(ctx context.Context, apiKey string) {
-	adapter := llm.NewOpenAIAdapter(apiKey, "gpt-4o-mini")
+	adapter := llm.NewOpenAIAdapter(apiKey, "gpt-5.2")
 
 	resp, err := adapter.Complete(ctx, llm.CompletionRequest{
 		SystemPrompt: "You are a wise spiritual guide. Be concise.",
